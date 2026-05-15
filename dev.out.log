@@ -35,3 +35,4 @@
  GET /game 200 in 541ms (next.js: 191ms, application-code: 350ms)
  GET /game 200 in 89ms (next.js: 9ms, application-code: 80ms)
  GET /game 200 in 35ms (next.js: 5ms, application-code: 29ms)
+ GET /game 200 in 421ms (next.js: 258ms, application-code: 163ms)

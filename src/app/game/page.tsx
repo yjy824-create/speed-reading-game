@@ -200,6 +200,10 @@ export default function GamePage() {
   const accuracy = totalAttempts === 0 ? 0 : Math.round((hits / totalAttempts) * 100);
   const currentPaceLabel = pace.toUpperCase();
   const currentModeLabel = mode === "classic" ? "CLASSIC MODE" : "SPEED FLASH MODE";
+  const currentTargetText = board.cells.find((cell) => cell.id === board.targetId)?.text ?? "--";
+  const isSpeedFlashMode = mode === "speedFlash";
+  const isClassicMode = !isSpeedFlashMode;
+  const classicTargetLabel = isClassicMode && running ? currentTargetText : "WAITING";
   const rewardToneClassName =
     combo >= 5
       ? "border-zinc-300/60 bg-zinc-900/95 text-zinc-50 opacity-100 tracking-[0.28em] font-semibold"
@@ -678,6 +682,15 @@ export default function GamePage() {
             );
           })}
         </div>
+
+        {isClassicMode ? (
+          <div
+            className={`w-full max-w-[22rem] pointer-events-none ${infoCardClassName} border-zinc-600/90 bg-zinc-900 sm:max-w-[26rem]`}
+          >
+            <div className={infoLabelClassName}>TARGET</div>
+            <div className={infoValueStrongClassName}>{classicTargetLabel}</div>
+          </div>
+        ) : null}
 
         <div className="flex flex-wrap items-center justify-center gap-2.5 pointer-events-auto sm:gap-3">
           <button
