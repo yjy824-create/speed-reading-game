@@ -27,7 +27,7 @@ type Board = {
 };
 
 const DIGITS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
-const FLASH_WORDS = ["FOCUS", "SPEED", "VISION", "FLOW", "TRACK"];
+const FLASH_WORDS = ["专注", "速度", "视觉", "节奏", "追踪"];
 const GRID_SIZE = 9;
 const ROUND_SECONDS = 30;
 const CELL_IDS = Array.from({ length: GRID_SIZE }, (_, idx) => idx + 1);
@@ -161,12 +161,13 @@ function getCellStyle(state: CellState): string {
 }
 
 const infoCardClassName =
-  "flex h-[5.25rem] flex-col justify-center rounded-md border border-zinc-800/80 bg-zinc-900/90 px-4 py-3 text-center shadow-[0_1px_0_rgba(255,255,255,0.03),0_12px_28px_rgba(0,0,0,0.28)]";
-const infoLabelClassName = "text-[10px] font-semibold tracking-[0.28em] text-zinc-500";
-const infoValueClassName = "mt-1 text-[1.05rem] font-semibold tracking-[0.18em] text-zinc-100 sm:text-[1.15rem]";
-const infoValueStrongClassName = "mt-1 text-[1.2rem] font-semibold tracking-[0.18em] text-zinc-100 sm:text-[1.3rem]";
+  "flex h-[4rem] flex-col justify-center rounded-md border border-zinc-800/80 bg-zinc-900/90 px-3 py-2 text-center shadow-[0_1px_0_rgba(255,255,255,0.03),0_10px_22px_rgba(0,0,0,0.26)] sm:h-[5.25rem] sm:px-4 sm:py-3 sm:shadow-[0_1px_0_rgba(255,255,255,0.03),0_12px_28px_rgba(0,0,0,0.28)]";
+const infoLabelClassName = "text-[9px] font-semibold tracking-[0.22em] text-zinc-500 sm:text-[10px] sm:tracking-[0.28em]";
+const infoValueClassName = "mt-0.5 text-[0.95rem] font-semibold tracking-[0.14em] text-zinc-100 sm:mt-1 sm:text-[1.15rem] sm:tracking-[0.18em]";
+const infoValueStrongClassName =
+  "mt-0.5 text-[1.05rem] font-semibold tracking-[0.14em] text-zinc-100 sm:mt-1 sm:text-[1.3rem] sm:tracking-[0.18em]";
 const controlButtonClassName =
-  "touch-manipulation rounded-md border px-4 py-2 text-sm font-semibold tracking-wide transition duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-45";
+  "touch-manipulation rounded-md border px-3 py-1.5 text-xs font-semibold tracking-wide transition duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-45 sm:px-4 sm:py-2 sm:text-sm";
 const gridCellBaseClassName =
   "touch-manipulation select-none rounded-md border transition duration-200 ease-out";
 
@@ -198,12 +199,20 @@ export default function GamePage() {
 
   const totalAttempts = hits + misses;
   const accuracy = totalAttempts === 0 ? 0 : Math.round((hits / totalAttempts) * 100);
-  const currentPaceLabel = pace.toUpperCase();
-  const currentModeLabel = mode === "classic" ? "CLASSIC MODE" : "SPEED FLASH MODE";
   const currentTargetText = board.cells.find((cell) => cell.id === board.targetId)?.text ?? "--";
   const isSpeedFlashMode = mode === "speedFlash";
   const isClassicMode = !isSpeedFlashMode;
-  const classicTargetLabel = isClassicMode && running ? currentTargetText : "WAITING";
+  const classicTargetLabel = isClassicMode && running ? currentTargetText : "等待中";
+  const statusLabelMap: Record<TrainingStatus, string> = {
+    READY: "就绪",
+    RUNNING: "进行中",
+    PAUSED: "已暂停",
+    FINISHED: "已结束",
+  };
+  const feedbackLabelMap: Record<Feedback, string> = {
+    Correct: "正确",
+    Miss: "失误",
+  };
   const rewardToneClassName =
     combo >= 5
       ? "border-zinc-300/60 bg-zinc-900/95 text-zinc-50 opacity-100 tracking-[0.28em] font-semibold"
@@ -343,23 +352,23 @@ export default function GamePage() {
     const roll = Math.random();
 
     if (currentCombo >= 5) {
-      if (roll < 0.45) return "Focus";
-      if (roll < 0.75) return "Great";
-      if (roll < 0.95) return "Combo +1";
-      return "Nice";
+      if (roll < 0.45) return "专注";
+      if (roll < 0.75) return "很好";
+      if (roll < 0.95) return "连击 +1";
+      return "不错";
     }
 
     if (currentCombo >= 3) {
-      if (roll < 0.4) return "Great";
-      if (roll < 0.75) return "Combo +1";
-      if (roll < 0.92) return "Focus";
-      return "Nice";
+      if (roll < 0.4) return "很好";
+      if (roll < 0.75) return "连击 +1";
+      if (roll < 0.92) return "专注";
+      return "不错";
     }
 
-    if (roll < 0.55) return "Nice";
-    if (roll < 0.8) return "Great";
-    if (roll < 0.95) return "Combo +1";
-    return "Focus";
+    if (roll < 0.55) return "不错";
+    if (roll < 0.8) return "很好";
+    if (roll < 0.95) return "连击 +1";
+    return "专注";
   }
 
   function showFeedback(nextFeedback: Feedback) {
@@ -385,13 +394,13 @@ export default function GamePage() {
       setCombo(nextCombo);
       if (nextCombo === 3 && lastMilestoneRef.current !== 3) {
         lastMilestoneRef.current = 3;
-        showMilestoneFeedback("COMBO x3");
+        showMilestoneFeedback("连击 x3");
       } else if (nextCombo === 5 && lastMilestoneRef.current !== 5) {
         lastMilestoneRef.current = 5;
-        showMilestoneFeedback("HOT STREAK");
+        showMilestoneFeedback("连击状态");
       } else if (nextCombo === 10 && lastMilestoneRef.current !== 10) {
         lastMilestoneRef.current = 10;
-        showMilestoneFeedback("FOCUS MODE");
+        showMilestoneFeedback("专注模式");
       } else {
         showRewardFeedback(pickRewardMessage(nextCombo));
       }
@@ -573,42 +582,42 @@ export default function GamePage() {
   }
 
   return (
-    <main className="min-h-screen w-full max-w-full overflow-x-hidden bg-zinc-950 px-4 py-8 text-zinc-100 sm:py-10">
-      <section className="mx-auto flex min-h-[80vh] w-full max-w-full flex-col items-center justify-center gap-5 overflow-x-hidden pointer-events-auto sm:max-w-xl sm:gap-6">
-        <h1 className="pointer-events-none text-center text-xl font-semibold tracking-[0.18em] text-zinc-200 sm:text-2xl sm:tracking-[0.28em]">
-          SPEED READING GRID
+    <main className="min-h-[100dvh] w-full max-w-full overflow-x-hidden bg-zinc-950 px-3 py-3 text-zinc-100 sm:px-4 sm:py-10">
+      <section className="mx-auto flex min-h-[100dvh] w-full max-w-full flex-col items-center justify-start gap-2 overflow-x-hidden pointer-events-auto sm:min-h-[80vh] sm:max-w-xl sm:justify-center sm:gap-6">
+        <h1 className="pointer-events-none text-center text-base font-semibold tracking-[0.16em] text-zinc-200 sm:text-2xl sm:tracking-[0.28em]">
+          速读训练九宫格
         </h1>
 
-        <div className="grid w-full max-w-[22rem] grid-cols-3 gap-2 text-center pointer-events-none sm:max-w-[26rem] sm:gap-3">
+        <div className="grid w-full max-w-[20rem] grid-cols-3 gap-1.5 text-center pointer-events-none sm:max-w-[26rem] sm:gap-3">
           <div className={infoCardClassName}>
-            <div className={infoLabelClassName}>TIME</div>
+            <div className={infoLabelClassName}>时间</div>
             <div className={infoValueStrongClassName}>{timeLeft}s</div>
           </div>
           <div className={infoCardClassName}>
-            <div className={infoLabelClassName}>HITS</div>
+            <div className={infoLabelClassName}>命中</div>
             <div className={infoValueClassName}>{hits}</div>
           </div>
           <div className={infoCardClassName}>
-            <div className={infoLabelClassName}>MISS</div>
+            <div className={infoLabelClassName}>失误</div>
             <div className={infoValueClassName}>{misses}</div>
           </div>
         </div>
 
         <div
-          className={`w-full max-w-[22rem] pointer-events-none ${infoCardClassName} sm:max-w-[26rem] ${
+          className={`w-full max-w-[20rem] pointer-events-none ${infoCardClassName} sm:max-w-[26rem] ${
             combo >= 5
               ? "border-zinc-300/70 bg-zinc-900 shadow-[0_1px_0_rgba(255,255,255,0.05),0_16px_34px_rgba(0,0,0,0.36)]"
               : ""
           }`}
         >
-          <div className={infoLabelClassName}>COMBO</div>
+          <div className={infoLabelClassName}>连击</div>
           <div
             className={`mt-1 font-semibold tracking-[0.18em] text-zinc-100 ${
               combo >= 5
-                ? "text-[1.45rem] sm:text-[1.6rem]"
+                ? "text-[1.2rem] sm:text-[1.6rem]"
                 : combo >= 3
-                  ? "text-[1.3rem] sm:text-[1.45rem]"
-                  : "text-[1.2rem] sm:text-[1.3rem]"
+                  ? "text-[1.1rem] sm:text-[1.45rem]"
+                  : "text-[1rem] sm:text-[1.3rem]"
             }`}
           >
             x{combo}
@@ -616,51 +625,41 @@ export default function GamePage() {
         </div>
 
         <div
-          className={`pointer-events-none min-h-6 text-center text-xs transition-opacity duration-200 ${visibleRewardToneClassName} ${
+          className={`pointer-events-none min-h-4 text-center text-[10px] transition-opacity duration-200 ${visibleRewardToneClassName} ${
             rewardVisible || milestoneVisible ? "opacity-100" : "opacity-0"
-          }`}
+          } sm:min-h-6 sm:text-xs`}
         >
           <span className={visibleRewardTextClassName}>{visibleRewardMessage ?? " "}</span>
         </div>
 
-        <div className="grid w-full max-w-[22rem] grid-cols-2 gap-2 pointer-events-auto sm:max-w-[26rem]">
+        <div className="grid w-full max-w-[20rem] grid-cols-2 gap-1.5 pointer-events-auto sm:max-w-[26rem] sm:gap-2">
           <button
             type="button"
             onClick={() => handleModeChange("classic")}
             disabled={running}
-            className={`min-h-11 touch-manipulation rounded-md border px-3 text-sm font-semibold tracking-wide transition duration-200 ease-out ${
+            className={`min-h-9 touch-manipulation rounded-md border px-2.5 text-xs font-semibold tracking-wide transition duration-200 ease-out sm:min-h-11 sm:px-3 sm:text-sm ${
               mode === "classic"
                 ? "border-zinc-200 bg-zinc-100 text-zinc-950 shadow-[0_6px_18px_rgba(0,0,0,0.22)]"
                 : "border-zinc-700/80 bg-zinc-900 text-zinc-400 hover:border-zinc-500 hover:bg-zinc-800 hover:text-zinc-100"
             } disabled:cursor-not-allowed disabled:opacity-45`}
           >
-            Classic Mode
+            经典模式
           </button>
           <button
             type="button"
             onClick={() => handleModeChange("speedFlash")}
             disabled={running}
-            className={`min-h-11 touch-manipulation rounded-md border px-3 text-sm font-semibold tracking-wide transition duration-200 ease-out ${
+            className={`min-h-9 touch-manipulation rounded-md border px-2.5 text-xs font-semibold tracking-wide transition duration-200 ease-out sm:min-h-11 sm:px-3 sm:text-sm ${
               mode === "speedFlash"
                 ? "border-zinc-200 bg-zinc-100 text-zinc-950 shadow-[0_6px_18px_rgba(0,0,0,0.22)]"
                 : "border-zinc-700/80 bg-zinc-900 text-zinc-400 hover:border-zinc-500 hover:bg-zinc-800 hover:text-zinc-100"
             } disabled:cursor-not-allowed disabled:opacity-45`}
           >
-            Speed Flash
+            闪词模式
           </button>
         </div>
 
-        <div className={`w-full max-w-[22rem] pointer-events-none ${infoCardClassName} sm:max-w-[26rem]`}>
-          <div className={infoLabelClassName}>CURRENT PACE</div>
-          <div className={infoValueStrongClassName}>{currentPaceLabel}</div>
-        </div>
-
-        <div className={`w-full max-w-[22rem] pointer-events-none ${infoCardClassName} sm:max-w-[26rem]`}>
-          <div className={infoLabelClassName}>CURRENT MODE</div>
-          <div className={infoValueStrongClassName}>{currentModeLabel}</div>
-        </div>
-
-        <div className="grid w-full max-w-[22rem] grid-cols-3 gap-2 pointer-events-auto sm:max-w-[26rem] sm:gap-3">
+        <div className="grid w-full max-w-[20rem] grid-cols-3 gap-1.5 pointer-events-auto sm:max-w-[26rem] sm:gap-3">
           {PACE_OPTIONS.map((option) => {
             const active = option.value === pace;
             const locked = running;
@@ -671,7 +670,7 @@ export default function GamePage() {
                 type="button"
                 onClick={() => setPace(option.value)}
                 disabled={locked}
-                className={`min-h-11 touch-manipulation rounded-md border px-3 text-sm font-semibold tracking-wide transition duration-200 ease-out ${
+                className={`min-h-9 touch-manipulation rounded-md border px-2 text-xs font-semibold tracking-wide transition duration-200 ease-out sm:min-h-11 sm:px-3 sm:text-sm ${
                   active
                     ? "border-zinc-200 bg-zinc-100 text-zinc-950 shadow-[0_6px_18px_rgba(0,0,0,0.22)]"
                     : "border-zinc-700/80 bg-zinc-900 text-zinc-400 hover:border-zinc-500 hover:bg-zinc-800 hover:text-zinc-100 hover:shadow-[0_4px_14px_rgba(0,0,0,0.16)]"
@@ -685,14 +684,14 @@ export default function GamePage() {
 
         {isClassicMode ? (
           <div
-            className={`w-full max-w-[22rem] pointer-events-none ${infoCardClassName} border-zinc-600/90 bg-zinc-900 sm:max-w-[26rem]`}
+            className={`w-full max-w-[20rem] pointer-events-none ${infoCardClassName} border-zinc-600/90 bg-zinc-900 sm:max-w-[26rem]`}
           >
-            <div className={infoLabelClassName}>TARGET</div>
+            <div className={infoLabelClassName}>目标</div>
             <div className={infoValueStrongClassName}>{classicTargetLabel}</div>
           </div>
         ) : null}
 
-        <div className="flex flex-wrap items-center justify-center gap-2.5 pointer-events-auto sm:gap-3">
+        <div className="flex flex-wrap items-center justify-center gap-1.5 pointer-events-auto sm:gap-3">
           <button
             type="button"
             onTouchStart={handleStartTouch}
@@ -703,7 +702,7 @@ export default function GamePage() {
             className={`${controlButtonClassName} border-zinc-500 bg-zinc-800 text-zinc-100 hover:border-zinc-400 hover:bg-zinc-700 hover:shadow-[0_6px_18px_rgba(0,0,0,0.18)] active:scale-[0.99]`}
             disabled={running || timeLeft <= 0}
           >
-            Start
+            开始
           </button>
           <button
             type="button"
@@ -715,7 +714,7 @@ export default function GamePage() {
             className={`${controlButtonClassName} border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-zinc-500 hover:bg-zinc-800 hover:shadow-[0_6px_18px_rgba(0,0,0,0.14)] active:scale-[0.99]`}
             disabled={!running}
           >
-            Pause
+            暂停
           </button>
           <button
             type="button"
@@ -726,16 +725,16 @@ export default function GamePage() {
             }}
             className={`${controlButtonClassName} border-zinc-700 bg-transparent text-zinc-400 hover:border-zinc-500 hover:bg-zinc-900 hover:text-zinc-100 active:scale-[0.99]`}
           >
-            Reset
+            重置
           </button>
         </div>
 
-        <div className={`w-full max-w-[22rem] pointer-events-none ${infoCardClassName} sm:max-w-[26rem]`}>
-          <div className={infoLabelClassName}>STATUS</div>
-          <div className={infoValueStrongClassName}>{status}</div>
+        <div className={`w-full max-w-[20rem] pointer-events-none ${infoCardClassName} sm:max-w-[26rem]`}>
+          <div className={infoLabelClassName}>状态</div>
+          <div className={infoValueStrongClassName}>{statusLabelMap[status]}</div>
         </div>
 
-        <div className="relative z-10 grid w-full max-w-[22rem] grid-cols-3 gap-2 pointer-events-auto sm:max-w-[26rem] sm:gap-4">
+        <div className="relative z-10 grid w-full max-w-[20rem] grid-cols-3 gap-1.5 pointer-events-auto sm:max-w-[26rem] sm:gap-4">
           {mode === "speedFlash" ? (
             <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
               <span
@@ -757,8 +756,8 @@ export default function GamePage() {
               disabled={!running || finished || timeLeft <= 0}
               className={`flex aspect-square items-center justify-center pointer-events-auto ${gridCellBaseClassName} ${
                 mode === "speedFlash"
-                  ? "text-[0.72rem] font-semibold tracking-[0.14em] sm:text-[0.9rem]"
-                  : "text-3xl font-bold sm:text-4xl"
+                  ? "text-[0.65rem] font-semibold tracking-[0.12em] sm:text-[0.9rem]"
+                  : "text-[1.6rem] font-bold sm:text-4xl"
               } ${getCellStyle(cell.state)} shadow-[0_1px_0_rgba(255,255,255,0.03),0_12px_24px_rgba(0,0,0,0.24)] ${
                 cell.id === board.targetId && cell.state === "visible"
                   ? "border-zinc-200/75 shadow-[0_1px_0_rgba(255,255,255,0.03),0_14px_28px_rgba(0,0,0,0.3)]"
@@ -770,23 +769,23 @@ export default function GamePage() {
           ))}
         </div>
 
-        <div className="pointer-events-none min-h-6 text-sm font-semibold tracking-[0.18em] text-zinc-300">
-          {feedback}
+        <div className="pointer-events-none min-h-4 text-xs font-semibold tracking-[0.14em] text-zinc-300 sm:min-h-6 sm:text-sm sm:tracking-[0.18em]">
+          {feedback ? feedbackLabelMap[feedback] : null}
         </div>
 
         {finished ? (
           <div className="w-full max-w-[22rem] rounded-md border border-zinc-700/80 bg-zinc-900/90 px-4 py-4 text-center shadow-[0_1px_0_rgba(255,255,255,0.03),0_16px_34px_rgba(0,0,0,0.32)] pointer-events-auto sm:max-w-[26rem]">
             <div className="text-xs font-semibold tracking-[0.24em] text-zinc-400">
-              TRAINING COMPLETE
+              训练完成
             </div>
             <div className="mt-4 rounded-md border border-zinc-800 bg-zinc-950 px-3 py-3">
-              <div className="text-xs font-semibold tracking-[0.18em] text-zinc-500">ACCURACY</div>
+              <div className="text-xs font-semibold tracking-[0.18em] text-zinc-500">准确率</div>
               <div className="mt-1 text-3xl font-semibold text-zinc-50 sm:text-4xl">{accuracy}%</div>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2 text-sm font-semibold text-zinc-200">
-              <div className="rounded-md border border-zinc-800 bg-zinc-950 py-2">Hits {hits}</div>
+              <div className="rounded-md border border-zinc-800 bg-zinc-950 py-2">命中 {hits}</div>
               <div className="rounded-md border border-zinc-800 bg-zinc-950 py-2">
-                Misses {misses}
+                失误 {misses}
               </div>
             </div>
             <button
@@ -801,7 +800,7 @@ export default function GamePage() {
               }}
               className="mt-4 w-full touch-manipulation rounded-md border border-zinc-300 bg-zinc-100 px-4 py-2 text-sm font-semibold tracking-[0.12em] text-zinc-900 transition duration-200 ease-out hover:border-zinc-100 hover:bg-zinc-200 active:scale-[0.99]"
             >
-              Play Again
+              再来一局
             </button>
           </div>
         ) : null}
