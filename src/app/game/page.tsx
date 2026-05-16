@@ -160,6 +160,22 @@ function getCellStyle(state: CellState): string {
   return "bg-zinc-900/25 text-transparent border-zinc-700/50";
 }
 
+function createAudioContext(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  const AudioCtx = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioCtx) return null;
+  return new AudioCtx();
+}
+
+function randomUnit(): number {
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    const values = new Uint32Array(1);
+    crypto.getRandomValues(values);
+    return values[0] / 0xffffffff;
+  }
+  return 0.5;
+}
+
 const infoCardClassName =
   "flex h-[4rem] flex-col justify-center rounded-md border border-zinc-800/80 bg-zinc-900/90 px-3 py-2 text-center shadow-[0_1px_0_rgba(255,255,255,0.03),0_10px_22px_rgba(0,0,0,0.26)] sm:h-[5.25rem] sm:px-4 sm:py-3 sm:shadow-[0_1px_0_rgba(255,255,255,0.03),0_12px_28px_rgba(0,0,0,0.28)]";
 const infoLabelClassName = "text-[9px] font-semibold tracking-[0.22em] text-zinc-500 sm:text-[10px] sm:tracking-[0.28em]";
@@ -175,6 +191,7 @@ export default function GamePage() {
   const [board, setBoard] = useState<Board>(() => createInitialBoard());
   const [running, setRunning] = useState(false);
   const [mode, setMode] = useState<TrainingMode>("classic");
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const [status, setStatus] = useState<TrainingStatus>("READY");
   const [pace, setPace] = useState<Pace>("medium");
   const [feedback, setFeedback] = useState<Feedback | null>(null);
@@ -196,6 +213,7 @@ export default function GamePage() {
   const lastTouchPressRef = useRef<{ cellId: number; at: number } | null>(null);
   const lastControlTouchRef = useRef<{ key: string; at: number } | null>(null);
   const lastMilestoneRef = useRef<number>(0);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   const totalAttempts = hits + misses;
   const accuracy = totalAttempts === 0 ? 0 : Math.round((hits / totalAttempts) * 100);
@@ -230,6 +248,55 @@ export default function GamePage() {
     ? "border-zinc-300/70 bg-zinc-900/95 text-zinc-50 opacity-100 tracking-[0.28em] font-semibold"
     : rewardToneClassName;
   const visibleRewardTextClassName = milestoneMessage ? "text-[1.08rem] sm:text-[1.16rem]" : rewardTextClassName;
+
+  function ensureAudioContext(): AudioContext | null {
+    if (!audioContextRef.current) {
+      audioContextRef.current = createAudioContext();
+    }
+    const context = audioContextRef.current;
+    if (context && context.state === "suspended") {
+      void context.resume();
+    }
+    return context;
+  }
+
+  function playTone(frequency: number, duration: number, volume: number, type: OscillatorType) {
+    const context = ensureAudioContext();
+    if (!context) return;
+
+    const now = context.currentTime;
+    const oscillator = context.createOscillator();
+    const gainNode = context.createGain();
+
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(frequency, now);
+
+    gainNode.gain.setValueAtTime(0.0001, now);
+    gainNode.gain.exponentialRampToValueAtTime(volume, now + 0.01);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(context.destination);
+
+    oscillator.start(now);
+    oscillator.stop(now + duration + 0.02);
+  }
+
+  function playButtonSound(force = false) {
+    if (!force && !soundEnabled) return;
+    playTone(520, 0.08, 0.028, "triangle");
+  }
+
+  function playCorrectSound() {
+    if (!soundEnabled) return;
+    playTone(760, 0.09, 0.04, "sine");
+    playTone(940, 0.12, 0.03, "triangle");
+  }
+
+  function playWrongSound() {
+    if (!soundEnabled) return;
+    playTone(220, 0.11, 0.035, "sawtooth");
+  }
 
   useEffect(() => {
     if (!running) return;
@@ -311,6 +378,9 @@ export default function GamePage() {
       if (flashTimeoutRef.current) {
         clearTimeout(flashTimeoutRef.current);
       }
+      if (audioContextRef.current) {
+        void audioContextRef.current.close();
+      }
     };
   }, []);
 
@@ -322,7 +392,7 @@ export default function GamePage() {
     setRewardMessage(nextMessage);
     setRewardVisible(true);
 
-    const visibleDuration = 500 + Math.floor(Math.random() * 401);
+    const visibleDuration = 500 + Math.floor(randomUnit() * 401);
     rewardTimeoutRef.current = setTimeout(() => {
       setRewardVisible(false);
       rewardTimeoutRef.current = setTimeout(() => {
@@ -339,7 +409,7 @@ export default function GamePage() {
     setMilestoneMessage(nextMessage);
     setMilestoneVisible(true);
 
-    const visibleDuration = 700 + Math.floor(Math.random() * 501);
+    const visibleDuration = 700 + Math.floor(randomUnit() * 501);
     milestoneTimeoutRef.current = setTimeout(() => {
       setMilestoneVisible(false);
       milestoneTimeoutRef.current = setTimeout(() => {
@@ -349,7 +419,7 @@ export default function GamePage() {
   }
 
   function pickRewardMessage(currentCombo: number): string {
-    const roll = Math.random();
+    const roll = randomUnit();
 
     if (currentCombo >= 5) {
       if (roll < 0.45) return "专注";
@@ -389,6 +459,7 @@ export default function GamePage() {
     if (!board.targetId) return;
 
     if (cellId === board.targetId) {
+      playCorrectSound();
       setHits((currentHits) => currentHits + 1);
       const nextCombo = combo + 1;
       setCombo(nextCombo);
@@ -408,6 +479,7 @@ export default function GamePage() {
       return;
     }
 
+    playWrongSound();
     setMisses((currentMisses) => currentMisses + 1);
     setCombo(0);
     if (rewardTimeoutRef.current) {
@@ -476,6 +548,7 @@ export default function GamePage() {
 
   function handleStart() {
     if (timeLeft <= 0) return;
+    playButtonSound();
     setFinished(false);
     setFeedback(null);
     setRunning(true);
@@ -483,12 +556,14 @@ export default function GamePage() {
   }
 
   function handlePause() {
+    playButtonSound();
     setRunning(false);
     setStatus("PAUSED");
     setFlashVisible(false);
   }
 
   function handleReset() {
+    playButtonSound();
     setRunning(false);
     setStatus("READY");
     if (mode === "classic") {
@@ -529,6 +604,7 @@ export default function GamePage() {
   }
 
   function handlePlayAgain() {
+    playButtonSound();
     if (feedbackTimeoutRef.current) {
       clearTimeout(feedbackTimeoutRef.current);
     }
@@ -563,6 +639,7 @@ export default function GamePage() {
 
   function handleModeChange(nextMode: TrainingMode) {
     if (running || mode === nextMode) return;
+    playButtonSound();
 
     if (flashTimeoutRef.current) {
       clearTimeout(flashTimeoutRef.current);
@@ -579,6 +656,22 @@ export default function GamePage() {
     }
 
     setMode(nextMode);
+  }
+
+  function handlePaceChange(nextPace: Pace) {
+    if (running || pace === nextPace) return;
+    playButtonSound();
+    setPace(nextPace);
+  }
+
+  function handleSoundToggle() {
+    if (!soundEnabled) {
+      setSoundEnabled(true);
+      playButtonSound(true);
+      return;
+    }
+
+    setSoundEnabled(false);
   }
 
   return (
@@ -659,6 +752,16 @@ export default function GamePage() {
           </button>
         </div>
 
+        <div className="flex w-full max-w-[20rem] justify-end pointer-events-auto sm:max-w-[26rem]">
+          <button
+            type="button"
+            onClick={handleSoundToggle}
+            className="touch-manipulation rounded-md border border-zinc-700/80 bg-zinc-900 px-3 py-1 text-xs font-semibold tracking-wide text-zinc-300 transition duration-200 ease-out hover:border-zinc-500 hover:bg-zinc-800 hover:text-zinc-100 active:scale-[0.99] sm:px-4 sm:py-2 sm:text-sm"
+          >
+            音效：{soundEnabled ? "开" : "关"}
+          </button>
+        </div>
+
         <div className="grid w-full max-w-[20rem] grid-cols-3 gap-1.5 pointer-events-auto sm:max-w-[26rem] sm:gap-3">
           {PACE_OPTIONS.map((option) => {
             const active = option.value === pace;
@@ -668,7 +771,7 @@ export default function GamePage() {
               <button
                 key={option.value}
                 type="button"
-                onClick={() => setPace(option.value)}
+                onClick={() => handlePaceChange(option.value)}
                 disabled={locked}
                 className={`min-h-9 touch-manipulation rounded-md border px-2 text-xs font-semibold tracking-wide transition duration-200 ease-out sm:min-h-11 sm:px-3 sm:text-sm ${
                   active
